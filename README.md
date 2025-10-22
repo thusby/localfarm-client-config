@@ -46,12 +46,30 @@ Ansible-pull blir sett opp til å køyre **kvar time** (macOS: LaunchDaemon, Lin
 
 Kvar gong oppdaterer maskina si `/etc/hosts`-fil frå `network_registry.yml`.
 
+## Standard Lokasjon
+
+Alle Localfarm-repos blir lagra i **same lokasjon på alle maskiner**:
+
+```
+~/Development/localfarm/
+├── localfarm-client-config/    # Dette repoet (alle klientar)
+├── infrastructure/             # Infrastruktur-playbooks (berre devserver/utviklere)
+└── localfarm-platform/         # Applikasjon (berre devserver/utviklere)
+```
+
+På Mac, Linux og Windows WSL: `~/Development/localfarm/`
+
 ## Testing lokalt (utan GitHub)
 
 ```bash
-# Bruk lokal kopi i staden for GitHub
+# 1. Klon til standard lokasjon
+mkdir -p ~/Development/localfarm
+cd ~/Development/localfarm
+git clone https://github.com/thusby/localfarm-client-config.git
+
+# 2. Test bootstrap frå lokal kopi
 ansible-pull \
-  -U file:///home/thusby/Development/localfarm/localfarm-client-config \
+  -U file://$HOME/Development/localfarm/localfarm-client-config \
   -i localhost, \
   playbooks/bootstrap.yml
 ```

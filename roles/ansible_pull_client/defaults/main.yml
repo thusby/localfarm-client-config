@@ -1,14 +1,17 @@
 ---
 # Defaults for ansible_pull_client role
 
+# Standard lokasjon for Git repos på alle maskiner (Mac/Linux/WSL)
+localfarm_base_path: "{{ ansible_env.HOME }}/Development/localfarm"
+
 # Git repository URL (endre til din faktiske repo når klar)
-ansible_pull_repo: "https://github.com/thusby/localfarm-infrastructure.git"
+ansible_pull_repo: "https://github.com/thusby/localfarm-client-config.git"
 
 # Alternativt: bruk lokal devserver (for testing utan GitHub)
-# ansible_pull_repo: "file:///opt/infrastructure"
+# ansible_pull_repo: "file://{{ localfarm_base_path }}/localfarm-client-config"
 
 # Playbook å køyre
-ansible_pull_playbook: "playbooks/client_update.yml"
+ansible_pull_playbook: "playbooks/update.yml"
 
 # Kor ofte skal ansible-pull køyre? (i minutt)
 ansible_pull_interval: 60  # Kvar time

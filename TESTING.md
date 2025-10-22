@@ -2,6 +2,21 @@
 
 Instruksjonar for å teste på Mac og Windows.
 
+## Standard Lokasjon
+
+Alle Localfarm-repos skal liggje i **same lokasjon på alle maskiner**:
+
+```
+~/Development/localfarm/
+├── localfarm-client-config/    # Dette repoet
+├── infrastructure/             # (kun på devserver)
+└── localfarm-platform/         # (kun på devserver)
+```
+
+På Mac: `/Users/BRUKERNAVN/Development/localfarm/`
+På Linux: `/home/BRUKERNAVN/Development/localfarm/`
+På Windows WSL: `/home/BRUKERNAVN/Development/localfarm/`
+
 ## Førebuing
 
 Før du startar, treng devserver vere tilgjengeleg på nettverket (192.168.68.29).
@@ -23,11 +38,12 @@ pip3 install ansible
 mkdir -p ~/mnt/devserver
 mount -t smbfs //thusby@devserver.localfarm.no/Development ~/mnt/devserver
 
-# Alternativ B: Git clone over SSH
-git clone thusby@devserver.localfarm.no:/home/thusby/Development/localfarm/localfarm-client-config ~/localfarm-client-config
+# Alternativ B: Git clone over SSH (til standard lokasjon)
+mkdir -p ~/Development/localfarm
+git clone thusby@devserver.localfarm.no:/home/thusby/Development/localfarm/localfarm-client-config ~/Development/localfarm/localfarm-client-config
 
 # 3. Test bootstrap (lokal fil)
-export LOCALFARM_REPO="file:///Users/$(whoami)/localfarm-client-config"
+export LOCALFARM_REPO="file:///Users/$(whoami)/Development/localfarm/localfarm-client-config"
 sudo ansible-pull \
   -U "$LOCALFARM_REPO" \
   -i localhost, \
@@ -107,15 +123,16 @@ sudo apt update
 sudo apt install -y ansible
 
 # 3. Test bootstrap (lokal fil via WSL path)
-# Først: Klon repo i WSL
-git clone file:////wsl.localhost/Ubuntu/mnt/devserver/Development/localfarm/localfarm-client-config ~/localfarm-client-config
+# Først: Klon repo i WSL til standard lokasjon
+mkdir -p ~/Development/localfarm
+git clone file:////wsl.localhost/Ubuntu/mnt/devserver/Development/localfarm/localfarm-client-config ~/Development/localfarm/localfarm-client-config
 
 # Eller over SSH:
-git clone thusby@devserver.localfarm.no:/home/thusby/Development/localfarm/localfarm-client-config ~/localfarm-client-config
+git clone thusby@devserver.localfarm.no:/home/thusby/Development/localfarm/localfarm-client-config ~/Development/localfarm/localfarm-client-config
 
 # 4. Køyr bootstrap
 sudo ansible-pull \
-  -U file:///home/$(whoami)/localfarm-client-config \
+  -U file:///home/$(whoami)/Development/localfarm/localfarm-client-config \
   -i localhost, \
   playbooks/bootstrap.yml
 
