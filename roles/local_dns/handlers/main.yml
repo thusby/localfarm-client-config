@@ -2,6 +2,6 @@
 # Handlers for local_dns role
 
 - name: Validate hosts file
-  ansible.builtin.command: getent hosts localhost
+  ansible.builtin.command: "{{ 'dscacheutil -q host -a name localhost' if ansible_os_family == 'Darwin' else 'getent hosts localhost' }}"
   changed_when: false
   become: true
