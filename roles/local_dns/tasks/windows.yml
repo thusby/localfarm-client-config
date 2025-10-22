@@ -1,0 +1,43 @@
+---
+# Windows specific tasks for local_dns role
+
+- name: Backup original Windows hosts file
+  ansible.windows.win_copy:
+    src: C:\Windows\System32\drivers\etc\hosts
+    dest: "C:\\Windows\\System32\\drivers\\etc\\hosts.backup.{{ ansible_date_time.epoch }}"
+    remote_src: true
+  when: backup_hosts_file
+
+- name: Read current Windows hosts file
+  ansible.windows.win_shell: |
+    Get-Content C:\Windows\System32\drivers\etc\hosts -Raw
+  register: win_hosts_file
+  changed_when: false
+
+- name: Set hosts content fact
+  ansible.builtin.set_fact:
+    hosts_content: "{{ win_hosts_file.stdout }}"
+
+- name: Remove old managed section if exists
+  ansible.builtin.set_fact:
+    hosts_content: "{{ hosts_content | regex_replace(marker_regex, '', multiline=True) }}"
+  vars:
+    marker_regex: "{{ hosts_marker_begin }}[\\s\\S]*?{{ hosts_marker_end }}"
+
+- name: Generate new hosts entries
+  ansible.builtin.set_fact:
+    new_hosts_entries: "{{ lookup('template', 'hosts_entries.j2') }}"
+
+- name: Combine hosts content
+  ansible.builtin.set_fact:
+    final_hosts_content: "{{ hosts_content | trim }}\r\n\r\n{{ new_hosts_entries }}\r\n"
+
+- name: Write updated Windows hosts file
+  ansible.windows.win_copy:
+    content: "{{ final_hosts_content }}"
+    dest: C:\Windows\System32\drivers\etc\hosts
+  notify: Flush DNS cache (Windows)
+
+- name: Display updated DNS records
+  ansible.builtin.debug:
+    msg: "Updated Windows hosts file with {{ dns_records | length }} DNS records"

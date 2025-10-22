@@ -1,0 +1,49 @@
+---
+# Linux/macOS specific tasks for local_dns role
+
+- name: Backup original /etc/hosts
+  ansible.builtin.copy:
+    src: /etc/hosts
+    dest: "/etc/hosts.backup.{{ ansible_date_time.epoch }}"
+    remote_src: true
+    mode: '0644'
+  when: backup_hosts_file
+  become: true
+
+- name: Read current /etc/hosts
+  ansible.builtin.slurp:
+    src: /etc/hosts
+  register: hosts_file
+  become: true
+
+- name: Decode hosts file
+  ansible.builtin.set_fact:
+    hosts_content: "{{ hosts_file.content | b64decode }}"
+
+- name: Remove old managed section if exists
+  ansible.builtin.set_fact:
+    hosts_content: "{{ hosts_content | regex_replace(marker_regex, '', multiline=True) }}"
+  vars:
+    marker_regex: "{{ hosts_marker_begin }}[\\s\\S]*?{{ hosts_marker_end }}"
+
+- name: Generate new hosts entries
+  ansible.builtin.set_fact:
+    new_hosts_entries: "{{ lookup('template', 'hosts_entries.j2') }}"
+
+- name: Combine hosts content
+  ansible.builtin.set_fact:
+    final_hosts_content: "{{ hosts_content | trim }}\n\n{{ new_hosts_entries }}\n"
+
+- name: Write updated /etc/hosts
+  ansible.builtin.copy:
+    content: "{{ final_hosts_content }}"
+    dest: /etc/hosts
+    mode: '0644'
+    owner: root
+    group: "{{ 'wheel' if ansible_os_family == 'Darwin' else 'root' }}"
+  become: true
+  notify: Validate hosts file
+
+- name: Display updated DNS records
+  ansible.builtin.debug:
+    msg: "Updated /etc/hosts with {{ dns_records | length }} DNS records"

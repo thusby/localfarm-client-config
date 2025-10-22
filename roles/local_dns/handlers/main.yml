@@ -5,3 +5,10 @@
   ansible.builtin.command: "{{ 'dscacheutil -q host -a name localhost' if ansible_os_family == 'Darwin' else 'getent hosts localhost' }}"
   changed_when: false
   become: true
+  when: ansible_os_family != "Windows"
+
+- name: Flush DNS cache (Windows)
+  ansible.windows.win_shell: |
+    ipconfig /flushdns
+  changed_when: false
+  when: ansible_os_family == "Windows"
