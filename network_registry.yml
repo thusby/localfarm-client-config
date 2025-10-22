@@ -1,0 +1,264 @@
+---
+# Localfarm Infrastructure Registry
+# Single source of truth for network, services, SSL, and routing
+# Last updated: 2025-10-22
+
+metadata:
+  version: "1.0"
+  managed_by: ansible
+  git_repo: localfarm-platform
+
+infrastructure:
+  domain: localfarm.no
+  gateway: 192.168.68.1
+  subnet: 192.168.68.0/24
+  dns:
+    primary: 192.168.68.29  # dnsmasq on devserver
+    secondary: 192.168.68.1 # UniFi UCG Max
+    search_domain: localfarm.no
+  ssl:
+    provider: letsencrypt
+    challenge: dns-01
+    dns_provider: domeneshop
+    manager: traefik
+    storage: /opt/infra/traefik/letsencrypt/acme.json
+    auto_renewal: true
+    email: admin@localfarm.no
+
+hosts:
+  - name: devserver
+    ip: 192.168.68.29
+    fqdn: devserver.localfarm.no
+    role: primary
+    ansible_host: 192.168.68.29
+    services:
+      - traefik
+      - grafana
+      - prometheus
+      - loki
+      - alertmanager
+      - frontend
+      - backend
+      - database
+      - redis
+      - celery
+
+services:
+  # Monitoring
+  - name: grafana
+    display_name: "Grafana Monitoring"
+    host: devserver
+    container: grafana
+    docker_networks:
+      - monitoring_monitoring
+      - infra_network
+    ports:
+      - "3000:3000"
+    domains:
+      - monitor.localfarm.no
+    ssl: true
+    traefik:
+      router: grafana-monitor
+      entrypoint: websecure
+      middlewares:
+        - secure-headers
+    depends_on:
+      - prometheus
+      - loki
+    health_check: "http://localhost:3000/api/health"
+
+  - name: prometheus
+    display_name: "Prometheus TSDB"
+    host: devserver
+    container: prometheus
+    docker_networks:
+      - monitoring_monitoring
+    ports:
+      - "9090:9090"
+    domains:
+      - prometheus.localfarm.no
+    ssl: false  # Internal only for now
+    health_check: "http://localhost:9090/-/healthy"
+
+  - name: loki
+    display_name: "Loki Log Aggregation"
+    host: devserver
+    container: loki
+    docker_networks:
+      - monitoring_monitoring
+    ports:
+      - "3100:3100"
+    domains:
+      - loki.localfarm.no
+    ssl: false  # Internal only
+    health_check: "http://localhost:3100/ready"
+
+  - name: alertmanager
+    display_name: "Alertmanager"
+    host: devserver
+    container: alertmanager
+    docker_networks:
+      - monitoring_monitoring
+    ports:
+      - "9093:9093"
+    domains:
+      - alerts.localfarm.no
+    ssl: false  # Internal only for now
+    health_check: "http://localhost:9093/-/healthy"
+
+  # Infrastructure
+  - name: traefik
+    display_name: "Traefik Reverse Proxy"
+    host: devserver
+    container: infra_traefik
+    docker_networks:
+      - infra_network
+    ports:
+      - "80:80"
+      - "443:443"
+    domains:
+      - traefik.localfarm.no
+    ssl: true
+    traefik:
+      router: traefik-dashboard
+      entrypoint: websecure
+      middlewares:
+        - dashboard-auth
+    health_check: "http://localhost:80/ping"
+
+  # Application
+  - name: frontend
+    display_name: "Localfarm Frontend (Vue.js)"
+    host: devserver
+    container: platform_frontend
+    docker_networks:
+      - infra_network
+    ports:
+      - "5173:5173"
+    domains:
+      - localfarm.no
+      - www.localfarm.no
+    ssl: true
+    traefik:
+      router: frontend
+      entrypoint: websecure
+      middlewares:
+        - secure-headers
+        - cors-headers
+    depends_on:
+      - backend
+    health_check: "http://localhost:5173/"
+
+  - name: backend
+    display_name: "Localfarm Backend (Django)"
+    host: devserver
+    container: platform_backend
+    docker_networks:
+      - infra_network
+    ports:
+      - "8000:8000"
+    domains:
+      - api.localfarm.no
+    ssl: true
+    traefik:
+      router: backend-api
+      entrypoint: websecure
+      middlewares:
+        - secure-headers
+        - cors-headers
+    depends_on:
+      - database
+      - redis
+    health_check: "http://localhost:8000/api/health/"
+
+  - name: database
+    display_name: "PostgreSQL Database"
+    host: devserver
+    container: platform_db
+    docker_networks:
+      - infra_network
+    ports:
+      - "5432:5432"
+    domains: []
+    ssl: false
+    health_check: "pg_isready"
+
+  - name: redis
+    display_name: "Redis Cache"
+    host: devserver
+    container: infra_redis
+    docker_networks:
+      - infra_network
+    ports:
+      - "6379:6379"
+    domains: []
+    ssl: false
+    health_check: "redis-cli ping"
+
+# Exporters for Prometheus
+exporters:
+  - name: node_exporter
+    host: devserver
+    port: 9100
+    job_name: node_exporter
+
+  - name: cadvisor
+    host: devserver
+    port: 8081
+    job_name: cadvisor
+
+  - name: nvidia_dcgm
+    host: devserver
+    port: 9400
+    job_name: nvidia_dcgm
+
+  - name: intel_gpu
+    host: devserver
+    port: 8083
+    job_name: intel_gpu
+
+  - name: ollama
+    host: devserver
+    port: 9001
+    job_name: ollama
+
+  - name: unifi_poller
+    host: devserver
+    port: 9130
+    job_name: unifi
+
+# DNS mappings (for /etc/hosts and dnsmasq)
+dns_records:
+  # Services with custom domains
+  - domain: monitor.localfarm.no
+    ip: 192.168.68.29
+    comment: "Grafana monitoring dashboard"
+
+  - domain: prometheus.localfarm.no
+    ip: 192.168.68.29
+    comment: "Prometheus TSDB (future public access)"
+
+  - domain: alerts.localfarm.no
+    ip: 192.168.68.29
+    comment: "Alertmanager (future public access)"
+
+  - domain: traefik.localfarm.no
+    ip: 192.168.68.29
+    comment: "Traefik dashboard"
+
+  - domain: localfarm.no
+    ip: 192.168.68.29
+    comment: "Frontend application"
+
+  - domain: www.localfarm.no
+    ip: 192.168.68.29
+    comment: "Frontend application (www alias)"
+
+  - domain: api.localfarm.no
+    ip: 192.168.68.29
+    comment: "Backend API"
+
+  # Host entries (managed by UniFi DHCP)
+  - domain: devserver.localfarm.no
+    ip: 192.168.68.29
+    comment: "Primary development server (DHCP registered)"

@@ -1,0 +1,12 @@
+---
+# Defaults for local_dns role
+
+# Path to network registry
+network_registry_path: "{{ playbook_dir }}/../network_registry.yml"
+
+# Backup original /etc/hosts
+backup_hosts_file: true
+
+# Marker for managed section
+hosts_marker_begin: "# BEGIN LOCALFARM MANAGED HOSTS"
+hosts_marker_end: "# END LOCALFARM MANAGED HOSTS"

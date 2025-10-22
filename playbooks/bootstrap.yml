@@ -1,0 +1,64 @@
+---
+# Bootstrap Playbook
+# Run once on new client to set up automatic updates
+
+- name: Bootstrap Localfarm Client
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    # Determine Git repo URL
+    git_repo: "{{ lookup('env', 'LOCALFARM_REPO') | default('https://github.com/thusby/localfarm-client-config.git', true) }}"
+    ansible_pull_interval: 60  # Every hour
+
+  pre_tasks:
+    - name: Welcome message
+      ansible.builtin.debug:
+        msg: |
+          🚀 Bootstrapping Localfarm Client Configuration
+
+          Platform: {{ ansible_os_family }}
+          Hostname: {{ ansible_hostname }}
+
+          This will:
+          1. Update /etc/hosts with Localfarm services
+          2. Set up ansible-pull for automatic updates (every {{ ansible_pull_interval }} min)
+
+          Repository: {{ git_repo }}
+
+  roles:
+    - role: local_dns
+      tags: ['dns', 'hosts']
+      become: true
+
+    - role: ansible_pull_client
+      vars:
+        ansible_pull_repo: "{{ git_repo }}"
+        ansible_pull_playbook: "playbooks/update.yml"
+        install_ansible: false  # Assume already installed
+      tags: ['ansible-pull']
+      become: true
+
+  post_tasks:
+    - name: Success message
+      ansible.builtin.debug:
+        msg: |
+          ✅ Bootstrap complete!
+
+          Your /etc/hosts has been updated with:
+          {% for record in (lookup('file', playbook_dir + '/../network_registry.yml') | from_yaml).dns_records %}
+          - {{ record.domain }}
+          {% endfor %}
+
+          Ansible-pull is now running every {{ ansible_pull_interval }} minutes.
+
+          Check status:
+            macOS: sudo launchctl list | grep localfarm
+            Linux: sudo crontab -l | grep ansible-pull
+
+          View logs:
+            tail -f /var/log/ansible-pull.log
+
+          Manual update:
+            sudo /usr/local/bin/localfarm-ansible-pull

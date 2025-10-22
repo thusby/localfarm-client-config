@@ -1,0 +1,4 @@
+# Ansible Pull - Auto-update from localfarm infrastructure
+# Managed by Ansible - do not edit manually
+
+*/{{ ansible_pull_interval }} * * * * {{ ansible_pull_user | default('root') }} {{ ansible_pull_command }} >> {{ ansible_pull_logfile }} 2>&1

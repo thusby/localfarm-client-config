@@ -1,0 +1,20 @@
+#!/bin/bash
+# Ansible Pull wrapper script for localfarm infrastructure
+# Managed by Ansible
+
+set -e
+
+REPO="{{ ansible_pull_repo }}"
+PLAYBOOK="{{ ansible_pull_playbook }}"
+LOGFILE="{{ ansible_pull_logfile }}"
+
+# Ensure log directory exists
+mkdir -p "$(dirname "$LOGFILE")"
+
+# Run ansible-pull
+ansible-pull \
+  -U "$REPO" \
+  -i localhost, \
+  "$PLAYBOOK" \
+  --only-if-changed \
+  -v

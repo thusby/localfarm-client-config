@@ -1,0 +1,10 @@
+{{ hosts_marker_begin }}
+# Auto-generated from network_registry.yml
+# Last updated: {{ ansible_date_time.iso8601 }}
+# Managed by Ansible - DO NOT EDIT THIS SECTION MANUALLY
+
+{% for record in dns_records %}
+{{ "%-20s" | format(record.ip) }} {{ record.domain }}  # {{ record.comment | default('') }}
+{% endfor %}
+
+{{ hosts_marker_end }}

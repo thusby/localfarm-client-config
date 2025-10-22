@@ -1,0 +1,7 @@
+---
+# Handlers for local_dns role
+
+- name: Validate hosts file
+  ansible.builtin.command: getent hosts localhost
+  changed_when: false
+  become: true

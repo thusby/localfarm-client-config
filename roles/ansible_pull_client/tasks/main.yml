@@ -1,0 +1,92 @@
+---
+# Tasks for ansible_pull_client role
+# Sets up automatic ansible-pull on client machines
+
+- name: Detect OS type
+  ansible.builtin.set_fact:
+    is_macos: "{{ ansible_os_family == 'Darwin' }}"
+    is_linux: "{{ ansible_os_family in ['Debian', 'RedHat', 'Archlinux'] }}"
+
+- name: Install Ansible (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name: ansible
+    state: present
+  become: true
+  when:
+    - install_ansible
+    - ansible_os_family == 'Debian'
+    - ansible_install_method == 'apt'
+
+- name: Install Ansible (pip - all platforms)
+  ansible.builtin.pip:
+    name: ansible
+    state: present
+  become: true
+  when:
+    - install_ansible
+    - ansible_install_method == 'pip'
+
+- name: Create ansible-pull script
+  ansible.builtin.template:
+    src: ansible-pull.sh.j2
+    dest: /usr/local/bin/localfarm-ansible-pull
+    mode: '0755'
+  become: true
+
+- name: Set script path fact
+  ansible.builtin.set_fact:
+    ansible_pull_script: /usr/local/bin/localfarm-ansible-pull
+    ansible_pull_command: /usr/local/bin/localfarm-ansible-pull
+
+# Linux: Use cron
+- name: Setup cron job for ansible-pull (Linux)
+  ansible.builtin.cron:
+    name: "Localfarm ansible-pull"
+    minute: "*/{{ ansible_pull_interval }}"
+    job: "{{ ansible_pull_script }} >> {{ ansible_pull_logfile }} 2>&1"
+    user: root
+    state: present
+  become: true
+  when: is_linux
+
+# macOS: Use LaunchDaemon
+- name: Setup LaunchDaemon for ansible-pull (macOS)
+  when: is_macos
+  become: true
+  block:
+    - name: Create LaunchDaemon plist
+      ansible.builtin.template:
+        src: launchd-ansible-pull.plist.j2
+        dest: /Library/LaunchDaemons/no.localfarm.ansible-pull.plist
+        mode: '0644'
+        owner: root
+        group: wheel
+
+    - name: Load LaunchDaemon
+      ansible.builtin.command:
+        cmd: launchctl load -w /Library/LaunchDaemons/no.localfarm.ansible-pull.plist
+      changed_when: true
+      failed_when: false
+
+- name: Create log directory
+  ansible.builtin.file:
+    path: "{{ ansible_pull_logfile | dirname }}"
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: Display setup information
+  ansible.builtin.debug:
+    msg: |
+      ✅ Ansible Pull configured!
+
+      Repository: {{ ansible_pull_repo }}
+      Playbook: {{ ansible_pull_playbook }}
+      Interval: Every {{ ansible_pull_interval }} minutes
+      Log: {{ ansible_pull_logfile }}
+
+      To test manually:
+        sudo {{ ansible_pull_script }}
+
+      To check logs:
+        tail -f {{ ansible_pull_logfile }}

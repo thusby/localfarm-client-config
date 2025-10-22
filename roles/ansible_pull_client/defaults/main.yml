@@ -1,0 +1,24 @@
+---
+# Defaults for ansible_pull_client role
+
+# Git repository URL (endre til din faktiske repo når klar)
+ansible_pull_repo: "https://github.com/thusby/localfarm-infrastructure.git"
+
+# Alternativt: bruk lokal devserver (for testing utan GitHub)
+# ansible_pull_repo: "file:///opt/infrastructure"
+
+# Playbook å køyre
+ansible_pull_playbook: "playbooks/client_update.yml"
+
+# Kor ofte skal ansible-pull køyre? (i minutt)
+ansible_pull_interval: 60  # Kvar time
+
+# Inventory limit (optional)
+ansible_pull_limit: "{{ inventory_hostname }}"
+
+# Log file
+ansible_pull_logfile: "/var/log/ansible-pull.log"
+
+# Ansible Pull installasjon
+install_ansible: true
+ansible_install_method: "pip"  # eller "apt" for Debian/Ubuntu

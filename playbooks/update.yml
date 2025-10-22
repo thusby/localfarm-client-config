@@ -1,0 +1,26 @@
+---
+# Update Playbook
+# Run automatically by ansible-pull every hour
+
+- name: Update Localfarm Client Configuration
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: true
+
+  vars:
+    network_registry_path: "{{ playbook_dir }}/../network_registry.yml"
+
+  tasks:
+    - name: Log update start
+      ansible.builtin.debug:
+        msg: "Updating {{ ansible_hostname }} at {{ ansible_date_time.iso8601 }}"
+
+  roles:
+    - role: local_dns
+      tags: ['dns', 'hosts']
+
+  post_tasks:
+    - name: Log update complete
+      ansible.builtin.debug:
+        msg: "Update complete - /etc/hosts synchronized"
