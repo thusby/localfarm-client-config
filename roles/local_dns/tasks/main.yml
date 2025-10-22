@@ -50,7 +50,7 @@
     dest: /etc/hosts
     mode: '0644'
     owner: root
-    group: root
+    group: "{{ 'wheel' if ansible_os_family == 'Darwin' else 'root' }}"
   become: true
   notify: Validate hosts file
 
