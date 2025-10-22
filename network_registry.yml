@@ -43,6 +43,14 @@ hosts:
       - redis
       - celery
 
+  - name: devradio
+    ip: 192.168.68.209
+    fqdn: devradio.localfarm.no
+    role: client
+    ansible_host: 192.168.68.209
+    services:
+      - apache2
+
 services:
   # Monitoring
   - name: grafana
@@ -262,3 +270,7 @@ dns_records:
   - domain: devserver.localfarm.no
     ip: 192.168.68.29
     comment: "Primary development server (DHCP registered)"
+
+  - domain: devradio.localfarm.no
+    ip: 192.168.68.209
+    comment: "Development client machine (DHCP registered)"
